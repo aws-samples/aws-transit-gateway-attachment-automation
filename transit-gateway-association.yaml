@@ -1,0 +1,118 @@
+# (c) 2019 Amazon Web Services, Inc. or its affiliates. All Rights Reserved. This AWS Content is provided subject to the terms of the AWS Customer
+# Agreement available at https://aws.amazon.com/agreement/ or other written agreement between Customer and Amazon Web Services, Inc.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploys an AWS Lambda Function that performs a Transit Gateway Attachment and Route creation to a centralized AWS Transit Gateway (RCS-1463)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: 'Parameter Settings'
+      Parameters:
+        - pVpcTag
+        - pTransitGatewayId
+        - pRoute
+    - Label:
+        default: 'Lambda Settings'
+      Parameters:
+        - pTGWLambdaS3Bucket
+        - pTGWLambdaS3Key
+    ParameterLabels:
+      pVpcTag:
+        default: VPC Tag
+      pTransitGatewayId:
+        default: Transit Gateway Id
+      pRoute:
+        default: Route Destination CIDR
+      pTGWLambdaS3Bucket:
+        default: S3 Bucket
+      pTGWLambdaS3Key:
+        default: S3 Key
+
+
+Parameters:
+  pVpcTag:
+    Description: VPC Tags that you would like to associate with the Transit Gateway (Comma Separated)
+    Type: String
+  pTransitGatewayId:
+    Description: The ID of the Central Account Transit Gateway
+    Type: String
+  pRoute:
+    Description: Destination Route for traffic to the Central Account Transit Gateway
+    Type: String
+    Default: '0.0.0.0/0'
+  pTGWLambdaS3Bucket:
+    Description: S3 Bucket for Transit Gateway Attachment Lambda Code
+    Type: String
+    AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
+  pTGWLambdaS3Key:
+    Description: The Key location of the Lambda zip for Transit Gateway Attachment.
+    Type: String
+    AllowedPattern: ^[a-zA-Z0-9[\\].\/()!:=?#,@+&;{}$-_]*
+
+
+Resources:
+  rGetVpcLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: TransitGatewayAttachments
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+          - Effect: Allow
+            Action:
+            - ec2:*
+            - iam:ListRoles
+            - iam:CreateServiceLinkedRole
+            Resource: "*"
+
+  rGetVpcLambda:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - rGetVpcLambdaRole
+    Properties:
+      FunctionName: !Sub TransitGatewayAttachmentsAndRoute
+      Role: !GetAtt rGetVpcLambdaRole.Arn
+      Description: Captures VPC metadata for Transit Gateway Attachments
+      Handler: index.lambda_handler
+      Runtime: python3.6
+      Timeout: 120
+      Code:
+        S3Bucket: !Ref pTGWLambdaS3Bucket
+        S3Key: !Ref pTGWLambdaS3Key
+
+  rGetVpcLambdaCustomIvoke:
+    Type: Custom::GetVPCLambdaInvoke
+    DependsOn: rGetVpcLambda
+    Properties:
+      ServiceToken: !GetAtt [ rGetVpcLambda, Arn ]
+      Vpc_Tags: !Ref pVpcTag
+      Account: !Sub ${AWS::AccountId}
+      Region: !Sub ${AWS::Region}
+      CIDR: !Ref pRoute
+      Transit_Gateway_Id: !Ref pTransitGatewayId
+
+  # Lambda permission - event rule can trigger evaluation
+  rLambdaPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn: rGetVpcLambda
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt 'rGetVpcLambda.Arn'
+      Principal: events.amazonaws.com

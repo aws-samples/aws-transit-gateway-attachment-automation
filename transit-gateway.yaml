@@ -1,0 +1,99 @@
+# (c) 2017 Amazon Web Services, Inc. or its affiliates. All Rights Reserved. This AWS Content is provided subject to the terms of the AWS Customer
+# Agreement available at https://aws.amazon.com/agreement/ or other written agreement between Customer and Amazon Web Services, Inc.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This is the CloudFormation script for deployment of a Transit Gateway (RCS-1463)
+Metadata: # Metadata Section
+  AWS::CloudFormation::Interface:
+    ParameterGroups: # Parameter Groups
+    - Label: # Transit Gateway Configuration
+        default: Transit Gateway Configuration
+      Parameters: # Label Parameters
+      - pAmazonAsn
+      - pAutoAcceptSharedAttachments
+      - pDefaultRouteTableAssociation
+      - pDefaultRouteTablePropagation
+      - pDnsSupport
+      - pVpnEcmpSupport
+
+    ParameterLabels: # Parameter Labels
+      pAmazonAsn:
+        default: Amazon Side ASN
+      pAutoAcceptSharedAttachments:
+        default: Auto Accept Share Attachments
+      pDefaultRouteTableAssociation:
+        default: Auto Associate Route Table Association
+      pDefaultRouteTablePropagation:
+        default: Automatic Route Propagation
+      pDnsSupport:
+        default: DNS Support
+      pVpnEcmpSupport:
+        default: Equal Cost Multipath Protocol
+
+Parameters: # CloudFormation Parameters
+  pAmazonAsn: # Amazon side BGP ASN
+    Type: String
+    Description: A private Autonomous System Number (ASN) for the Amazon side of a BGP session.
+    Default: 65000
+    MinLength: 5
+    MaxLength: 10
+    ConstraintDescription: The range is 64512 to 65534 for 16-bit ASNs and 4200000000 to 4294967294 for 32-bit ASNs.
+
+  pAutoAcceptSharedAttachments: # enable/disable attachment requests
+    Type: String
+    Description: Indicates whether cross-account attachment requests are automatically accepted.
+    Default: "enable"
+    AllowedValues:
+      - "enable"
+      - "disable"
+
+  pDefaultRouteTableAssociation: # enable/disable automatic route table association
+    Type: String
+    Description: Enable or disable automatic association with the default association route table.
+    Default: "enable"
+    AllowedValues:
+      - "enable"
+      - "disable"
+
+  pDefaultRouteTablePropagation: # enable/disable automatic route propagation to the default route table
+    Type: String
+    Description: Enable or disable automatic propagation of routes to the default propagation route table.
+    Default: "enable"
+    AllowedValues:
+      - "enable"
+      - "disable"
+
+  pDnsSupport: # Enable or disable DNS support
+    Type: String
+    Description: Enable or disable DNS support.
+    Default: "enable"
+    AllowedValues:
+      - "enable"
+      - "disable"
+
+  pVpnEcmpSupport: # Enable or disable Equal Cost Multipath Protocol
+    Type: String
+    Description: Enable or disable Equal Cost Multipath Protocol.
+    Default: "disable"
+    AllowedValues:
+      - "enable"
+      - "disable"
+
+Resources: # CloudFormation Resources
+  rTransitGateway:
+    Type: "AWS::EC2::TransitGateway"
+    Properties:
+      AmazonSideAsn: !Ref pAmazonAsn
+      AutoAcceptSharedAttachments: !Ref pAutoAcceptSharedAttachments
+      DefaultRouteTableAssociation: !Ref pDefaultRouteTableAssociation
+      DefaultRouteTablePropagation: !Ref pDefaultRouteTablePropagation
+      Description: "Transit Gateway serves as a centralized outgoing gateway for networking traffic"
+      DnsSupport: !Ref pDnsSupport
+      Tags:
+        - Key: Name
+          Value: 'My Transit Gateway'
+      VpnEcmpSupport: !Ref pVpnEcmpSupport
+
+Outputs:
+  oTransitGatewayId: #Outputs the Transit Gateway ID
+    Description: The Transit Gateway ID
+    Value: !Ref rTransitGateway
