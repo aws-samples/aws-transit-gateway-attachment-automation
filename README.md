@@ -49,7 +49,6 @@ As IT environments grow, they can become more complex, with additional accounts,
 		<span class="token property">"Action"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
 			<span class="token string">"sts:AssumeRole"</span>
 		<span class="token punctuation">]</span><span class="token punctuation">,</span>
-
 		<span class="token property">"Resource"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
 			<span class="token string">"arn:aws:iam::*:role/AWSCloudFormationStackSetExecutionRole"</span>
 		<span class="token punctuation">]</span><span class="token punctuation">,</span>
